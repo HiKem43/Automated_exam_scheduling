@@ -257,10 +257,12 @@ function createScheduleCard(schedule, index) {
     const students = getScheduleStudents(schedule);
     const studentCount = getScheduleStudentCount(schedule);
 
+    // Lấy danh sách sinh viên đầy đủ từ API
+    const allStudents = getStudentsFromData(examData);
+
     const countText = document.createElement("p");
     countText.className = "schedule-student-count";
-    countText.textContent =
-        `Số sinh viên: ${studentCount}`;
+    countText.textContent = `Số sinh viên: ${studentCount}`;
 
     info.append(title, details, countText);
     row.appendChild(info);
@@ -282,7 +284,14 @@ function createScheduleCard(schedule, index) {
         const thead = document.createElement("thead");
         const headerRow = document.createElement("tr");
 
-        ["STT", "Mã sinh viên", "Họ và tên"].forEach(label => {
+        [
+            "STT",
+            "Mã sinh viên",
+            "Họ và tên",
+            "Ngày sinh",
+            "Giới tính",
+            "Mã môn"
+        ].forEach(label => {
             const th = document.createElement("th");
             th.textContent = label;
             headerRow.appendChild(th);
@@ -304,19 +313,51 @@ function createScheduleCard(schedule, index) {
                     ""
                 );
 
-            const fullName = typeof student === "string"
-                ? ""
-                : (
-                    student.fullName ??
-                    student.name ??
-                    student.full_name ??
-                    ""
-                );
+            // Tìm thông tin đầy đủ của sinh viên trong dữ liệu API
+            const studentInfo = allStudents.find(s =>
+                String(s.studentId ?? s.id ?? s.student_id ?? "") ===
+                String(studentId)
+            ) || {};
+
+            const fullName =
+                student.fullName ??
+                student.name ??
+                student.full_name ??
+                studentInfo.fullName ??
+                studentInfo.name ??
+                studentInfo.full_name ??
+                "";
+
+            const dateOfBirth =
+                student.dateOfBirth ??
+                student.date_of_birth ??
+                studentInfo.dateOfBirth ??
+                studentInfo.date_of_birth ??
+                "";
+
+            const gender =
+                student.gender ??
+                studentInfo.gender ??
+                "";
+
+            const courses =
+                student.registeredCourses ??
+                studentInfo.registeredCourses ??
+                studentInfo.registered_courses ??
+                schedule.courseId ??
+                "";
+
+            const registeredCourses = Array.isArray(courses)
+                ? courses.join(", ")
+                : courses;
 
             [
                 studentIndex + 1,
                 studentId,
-                fullName
+                fullName,
+                dateOfBirth,
+                gender,
+                registeredCourses
             ].forEach(value => {
                 const td = document.createElement("td");
                 td.textContent = String(value ?? "");
@@ -334,7 +375,7 @@ function createScheduleCard(schedule, index) {
         empty.className = "student-list-empty";
 
         empty.textContent = studentCount > 0
-            ? "API mới trả về số lượng sinh viên, chưa có danh sách chi tiết. Cần cập nhật API C++ để trả về mảng students."
+            ? "API mới trả về số lượng sinh viên, chưa có danh sách chi tiết."
             : "Lịch thi này chưa có sinh viên trong dữ liệu trả về.";
 
         studentPanel.appendChild(empty);
@@ -744,7 +785,8 @@ function showStatistics(type) {
         }
     }
 
-    // TONG SO SINH VIEN
+    
+    // TU DONG  VIEN
     else if (type === "students") {
         title.textContent = "Danh sách sinh viên";
 
@@ -754,35 +796,40 @@ function showStatistics(type) {
         makeHeader([
             "STT",
             "Mã sinh viên",
-            "Họ và tên"
+            "Họ và tên",
+            "Ngày sinh",
+            "Giới tính",
+            "Mã môn"
         ]);
 
         const students = getStudentsFromData(examData);
 
         if (students.length === 0) {
-    const totalStudents =
-        typeof examData.students === "number"
-            ? examData.students
-            : examData.totalStudents ??
-              examData.studentCount ??
-              examData.total_students ??
-              0;
+            const totalStudents =
+                typeof examData.students === "number"
+                    ? examData.students
+                    : examData.totalStudents ??
+                      examData.studentCount ??
+                      examData.total_students ??
+                      0;
 
-    showEmpty(
-        `Tổng số sinh viên: ${totalStudents}. API hiện chưa trả về danh sách mã sinh viên và họ tên chi tiết.`
-    );
-} else {
+            showEmpty(
+                `Tổng số sinh viên: ${totalStudents}. API hiện chưa trả về danh sách chi tiết.`
+            );
+        } else {
             students.forEach((student, index) => {
+                const registeredCourses =
+                    Array.isArray(student.registeredCourses)
+                        ? student.registeredCourses.join(", ")
+                        : (student.registeredCourses ?? "");
+
                 makeRow([
                     index + 1,
-                    student.studentId ??
-                        student.id ??
-                        student.student_id ??
-                        "",
-                    student.fullName ??
-                        student.name ??
-                        student.full_name ??
-                        ""
+                    student.studentId ?? student.id ?? student.student_id ?? "",
+                    student.fullName ?? student.name ?? student.full_name ?? "",
+                    student.dateOfBirth ?? student.date_of_birth ?? "",
+                    student.gender ?? "",
+                    registeredCourses
                 ]);
             });
         }
@@ -795,6 +842,7 @@ function showStatistics(type) {
 
         showEmpty("Không tìm thấy dữ liệu.");
     }
+
 
     detail.scrollIntoView({
         behavior: "smooth",
