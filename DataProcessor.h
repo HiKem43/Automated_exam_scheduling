@@ -364,8 +364,7 @@ public:
             string danhSachMon = normalizeName(phan[4]);
 
             if (maSV.empty() || hoTen.empty() ||
-                ngaySinh.empty() || gioiTinh.empty() ||
-                danhSachMon.empty()) {
+                ngaySinh.empty() || gioiTinh.empty()) {
 
                 cerr << "Loi file STUDENTS, dong "
                      << soDong << ": Du lieu bi thieu."
@@ -375,27 +374,28 @@ public:
                 return false;
             }
 
-            // Tach danh sach mon hoc theo dau phay
-            vector<string> cacMon =
-                splitString(danhSachMon, ',');
-
             vector<string> monDangKy;
 
-            for (int i = 0; i < (int)cacMon.size(); i++) {
+            if (!danhSachMon.empty()) {
+                // Tach danh sach mon hoc theo dau phay
+                vector<string> cacMon =
+                    splitString(danhSachMon, ',');
 
-                string maMon = normalizeName(cacMon[i]);
+                for (int i = 0; i < (int)cacMon.size(); i++) {
+                    string maMon = normalizeName(cacMon[i]);
 
-                if (maMon.empty()) {
-                    cerr << "Loi file STUDENTS, dong "
-                         << soDong
-                         << ": Ma mon dang ky bi thieu."
-                         << endl;
+                    if (maMon.empty()) {
+                        cerr << "Loi file STUDENTS, dong "
+                             << soDong
+                             << ": Ma mon dang ky bi thieu."
+                             << endl;
 
-                    file.close();
-                    return false;
+                        file.close();
+                        return false;
+                    }
+
+                    monDangKy.push_back(maMon);
                 }
-
-                monDangKy.push_back(maMon);
             }
 
             // Kiem tra ma sinh vien bi trung

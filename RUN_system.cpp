@@ -3,6 +3,7 @@
 #include <chrono>
 #include <algorithm>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -14,6 +15,11 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shellapi.h>
 
 #include "DataProcessor.h"
 #include "GreedyScheduler.h"
@@ -21,8 +27,10 @@
 #include "DPScheduler.h"
 
 #pragma comment(lib, "ws2_32")
+#pragma comment(lib, "shell32")
 
 using namespace std;
+namespace fs = std::filesystem;
 
 // ======================================================
 // CHUYEN CHUOI THANH JSON STRING AN TOAN
@@ -254,28 +262,58 @@ return request.substr(bodyPos + 4);
 
 }
 
+struct AppData {
+    vector<Course> courses;
+    vector<Student> students;
+    vector<ExamRoom> rooms;
+    vector<TimeSlot> timeSlots;
+    unordered_map<string, vector<Student>> courseStudentsMap;
+};
+
+bool loadAppData(AppData& data, const fs::path& inputDirectory) {
+    DataProcessor dataProcessor;
+    if (!dataProcessor.loadFromFiles(
+            inputDirectory / "data_Config.txt",
+            inputDirectory / "data_Courses.txt",
+            inputDirectory / "data_Students.txt",
+            inputDirectory / "data_Rooms.txt",
+            inputDirectory / "data_Time_Slots.txt"
+        )) {
+        cerr << "Không thể tải dữ liệu!\n";
+        return false;
+    }
+
+    if (!dataProcessor.validateData()) {
+        cerr << "Dữ liệu không hợp lệ. Hãy kiểm tra lại!\n";
+        return false;
+    }
+
+    data.courses = dataProcessor.getCourses();
+    data.students = dataProcessor.getStudents();
+    data.rooms = dataProcessor.getRooms();
+    data.timeSlots = dataProcessor.getTimeSlots();
+    data.courseStudentsMap.clear();
+    data.courseStudentsMap.reserve(data.courses.size());
+
+    for (const Student& student : data.students) {
+        for (const string& courseId : student.getRegisteredCourses()) {
+            data.courseStudentsMap[courseId].push_back(student);
+        }
+    }
+
+    return true;
+}
+
 // ======================================================
 // API DOC DU LIEU
 // GET /api/data
 // ======================================================
 
-string getJSONData() {
-DataProcessor dp;
-
-if (!dp.loadFromFiles(
-        "input/data_Config.txt",
-        "input/data_Courses.txt",
-        "input/data_Students.txt",
-        "input/data_Rooms.txt",
-        "input/data_Time_Slots.txt"
-    )) {
-    return R"({"ok":false,"error":"Khong doc duoc du lieu. Hay chay server tu thu muc goc project."})";
-}
-
-auto courses = dp.getCourses();
-auto students = dp.getStudents();
-auto rooms = dp.getRooms();
-auto slots = dp.getTimeSlots();
+string getJSONData(const AppData& data) {
+const auto& courses = data.courses;
+const auto& students = data.students;
+const auto& rooms = data.rooms;
+const auto& slots = data.timeSlots;
 
 unordered_map<string, int> courseStudentCount;
 
@@ -301,30 +339,28 @@ for (size_t i = 0; i < students.size(); ++i) {
 
     const auto& student = students[i];
 
-   json << "{"
-     << "\"studentId\":\""
-     << escapeJSON(student.getStudentId()) << "\","
-     << "\"fullName\":\""
-     << escapeJSON(student.getFullName()) << "\","
-     << "\"dateOfBirth\":\""
-     << escapeJSON(student.getDateOfBirth()) << "\","
-     << "\"gender\":\""
-     << escapeJSON(student.getGender()) << "\","
-     << "\"registeredCourses\":[";
+    json << "{"
+         << "\"studentId\":\""
+         << escapeJSON(student.getStudentId()) << "\","
+         << "\"fullName\":\""
+         << escapeJSON(student.getFullName()) << "\","
+         << "\"dateOfBirth\":\""
+         << escapeJSON(student.getDateOfBirth()) << "\","
+         << "\"gender\":\""
+         << escapeJSON(student.getGender()) << "\","
+         << "\"registeredCourses\":[";
 
-const auto& registeredCourses = student.getRegisteredCourses();
+    const auto& registeredCourses = student.getRegisteredCourses();
+    for (size_t j = 0; j < registeredCourses.size(); ++j) {
+        if (j > 0) json << ",";
+        json << "\"" << escapeJSON(registeredCourses[j]) << "\"";
+    }
 
-for (size_t j = 0; j < registeredCourses.size(); ++j) {
-    if (j > 0) json << ",";
-
-    json << "\""
-         << escapeJSON(registeredCourses[j])
-         << "\"";
+    json << "]}";
 }
 
-json << "]}";
-}
 json << "]";
+
 // DANH SACH MON HOC
 
 json << ",\"courseList\":[";
@@ -408,7 +444,39 @@ return json.str();
 // POST /api/schedule
 // ======================================================
 
-string runSchedule(const string& body) {
+vector<Schedule> runAlgorithm(
+    const string& algorithm,
+    const AppData& data,
+    vector<string>& failedCourses
+) {
+    if (algorithm == "greedy") {
+        return GreedyScheduler::schedule(
+            data.courses,
+            data.rooms,
+            data.timeSlots,
+            data.courseStudentsMap,
+            failedCourses
+        );
+    }
+    if (algorithm == "backtracking") {
+        return BacktrackingScheduler::schedule(
+            data.courses,
+            data.rooms,
+            data.timeSlots,
+            data.courseStudentsMap,
+            failedCourses
+        );
+    }
+    return DPScheduler::runDPScheduler(
+        data.courses,
+        data.rooms,
+        data.timeSlots,
+        data.courseStudentsMap,
+        failedCourses
+    );
+}
+
+string runSchedule(const string& body, const AppData& data) {
 string algorithm;
 
 // Doc ten thuat toan tu JSON.
@@ -424,64 +492,13 @@ if (body.find("\"backtracking\"") != string::npos) {
     return R"({"ok":false,"error":"Thuat toan khong hop le"})";
 }
 
-DataProcessor dp;
-
-if (!dp.loadFromFiles(
-        "input/data_Config.txt",
-        "input/data_Courses.txt",
-        "input/data_Students.txt",
-        "input/data_Rooms.txt",
-        "input/data_Time_Slots.txt"
-    )) {
-    return R"({"ok":false,"error":"Khong doc duoc du lieu"})";
-}
-
-auto courses = dp.getCourses();
-auto rooms = dp.getRooms();
-auto slots = dp.getTimeSlots();
-auto students = dp.getStudents();
-
-// Gom sinh vien theo mon hoc.
-
-unordered_map<string, vector<Student>> courseStudentsMap;
-
-for (const auto& student : students) {
-    for (const auto& courseId : student.getRegisteredCourses()) {
-        courseStudentsMap[courseId].push_back(student);
-    }
-}
-
 vector<string> failedCourses;
 vector<Schedule> schedules;
 
 auto startTime = chrono::steady_clock::now();
 
 try {
-    if (algorithm == "greedy") {
-        schedules = GreedyScheduler::schedule(
-            courses,
-            rooms,
-            slots,
-            courseStudentsMap,
-            failedCourses
-        );
-    } else if (algorithm == "backtracking") {
-        schedules = BacktrackingScheduler::schedule(
-            courses,
-            rooms,
-            slots,
-            courseStudentsMap,
-            failedCourses
-        );
-    } else {
-        schedules = DPScheduler::runDPScheduler(
-            courses,
-            rooms,
-            slots,
-            courseStudentsMap,
-            failedCourses
-        );
-    }
+    schedules = runAlgorithm(algorithm, data, failedCourses);
 } catch (const exception& e) {
     return string("{\"ok\":false,\"error\":\"") +
         escapeJSON(e.what()) + "\"}";
@@ -670,13 +687,126 @@ return json.str();
 // MAIN SERVER
 // ======================================================
 
+void printResults(
+    ostream& output,
+    const string& algorithmName,
+    const vector<Schedule>& schedules,
+    const vector<string>& failedCourses,
+    long long elapsedMicroseconds
+) {
+    output << "\n=== " << algorithmName << " ===\n";
+    output << "Số môn đã xếp: " << schedules.size() << '\n';
+    output << "Thời gian: " << elapsedMicroseconds << " micro giây\n";
+
+    for (const Schedule& schedule : schedules) {
+        const Course course = schedule.getCourse();
+        const ExamRoom room = schedule.getRoom();
+        const TimeSlot slot = schedule.getTimeSlot();
+
+        output << schedule.getScheduleId()
+               << " | " << course.getCourseId()
+               << " - " << course.getCourseName()
+               << " | " << slot.getExamDate()
+               << " " << slot.getStartTime() << "-" << slot.getEndTime()
+               << " | Phòng " << room.getRoomId()
+               << " | " << schedule.getStudents().size() << " sinh viên"
+               << '\n';
+    }
+
+    if (!failedCourses.empty()) {
+        output << "Các môn chưa xếp được: ";
+        for (size_t i = 0; i < failedCourses.size(); ++i) {
+            if (i > 0) output << ", ";
+            output << failedCourses[i];
+        }
+        output << '\n';
+    }
+}
+
+bool runBatchAlgorithms(const AppData& data) {
+    error_code outputError;
+    fs::create_directories("output", outputError);
+    if (outputError) {
+        cerr << "Không thể tạo thư mục output: "
+             << outputError.message() << '\n';
+        return false;
+    }
+
+    ofstream outputFile(fs::path("output") / "output.txt");
+    if (!outputFile) {
+        cerr << "Không thể mở file output/output.txt để ghi.\n";
+        return false;
+    }
+    outputFile.write("\xEF\xBB\xBF", 3);
+
+    cout << "Dữ liệu hợp lệ. Bắt đầu chạy các thuật toán xếp lịch.\n";
+    outputFile << "Dữ liệu hợp lệ. Bắt đầu chạy các thuật toán xếp lịch.\n";
+
+    auto reportResults = [&](const string& algorithmName,
+                             const vector<Schedule>& schedules,
+                             const vector<string>& failedCourses,
+                             long long elapsedMicroseconds) {
+        printResults(cout, algorithmName, schedules, failedCourses, elapsedMicroseconds);
+        printResults(outputFile, algorithmName, schedules, failedCourses, elapsedMicroseconds);
+    };
+
+    auto runAndReport = [&](const string& algorithm,
+                            const string& algorithmName) {
+        vector<string> failedCourses;
+        const auto start = chrono::steady_clock::now();
+        const vector<Schedule> schedules =
+            runAlgorithm(algorithm, data, failedCourses);
+        const auto elapsed = chrono::duration_cast<chrono::microseconds>(
+            chrono::steady_clock::now() - start
+        ).count();
+        reportResults(algorithmName, schedules, failedCourses, elapsed);
+    };
+
+    runAndReport("greedy", "Thuật toán tham lam (Greedy)");
+    runAndReport("dp", "Quy hoạch động (DP)");
+    runAndReport("backtracking", "Quay lui (Backtracking)");
+
+    outputFile.close();
+    if (!outputFile) {
+        cerr << "Không thể ghi đầy đủ file output/output.txt.\n";
+        return false;
+    }
+
+    cout << "Đã ghi kết quả vào output/output.txt.\n";
+    return true;
+}
+
 volatile std::sig_atomic_t shutdownRequested = 0;
 
 void handleInterrupt(int) {
     shutdownRequested = 1;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+#ifdef _WIN32
+const HANDLE consoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+DWORD consoleMode;
+if (consoleOutput != INVALID_HANDLE_VALUE &&
+    GetConsoleMode(consoleOutput, &consoleMode) &&
+    !SetConsoleOutputCP(CP_UTF8)) {
+    cerr << "Khong the dat ma hoa console thanh UTF-8. Ma loi: "
+         << GetLastError() << '\n';
+    return 1;
+}
+#endif
+
+if (argc > 2) {
+    cerr << "Cách dùng: " << argv[0]
+         << " [thu_muc_chua_du_lieu]\n";
+    return 1;
+}
+
+const fs::path inputDirectory = argc == 2 ? argv[1] : "input";
+AppData appData;
+if (!loadAppData(appData, inputDirectory) || !runBatchAlgorithms(appData)) {
+    return 1;
+}
+
 if (std::signal(SIGINT, handleInterrupt) == SIG_ERR) {
     cerr << "Khong the dang ky xu ly Ctrl+C.\n";
     return 1;
@@ -731,6 +861,17 @@ if (listen(serverSocket, SOMAXCONN) == SOCKET_ERROR) {
 
 cout << "Server dang chay tai http://127.0.0.1:8080\n";
 cout << "Nhan Ctrl+C de dung.\n";
+const HINSTANCE browserResult = ShellExecuteW(
+    nullptr,
+    L"open",
+    L"http://127.0.0.1:8080/",
+    nullptr,
+    nullptr,
+    SW_SHOWNORMAL
+);
+if (reinterpret_cast<INT_PTR>(browserResult) <= 32) {
+    cerr << "Khong the tu mo trinh duyet. Hay mo http://127.0.0.1:8080/ thu cong.\n";
+}
 
 while (!shutdownRequested) {
     fd_set readableSockets;
@@ -820,7 +961,15 @@ while (!shutdownRequested) {
     // API DU LIEU
 
     else if (path == "/api/data") {
-        response = makeResponse(getJSONData());
+        if (loadAppData(appData, inputDirectory)) {
+            response = makeResponse(getJSONData(appData));
+        } else {
+            response = makeResponse(
+                R"({"ok":false,"error":"Khong doc duoc du lieu"})",
+                "application/json",
+                "500 Internal Server Error"
+            );
+        }
     }
 
     // API XEP LICH
@@ -831,7 +980,15 @@ while (!shutdownRequested) {
     ) {
         string body = getRequestBody(request);
 
-        response = makeResponse(runSchedule(body));
+        if (loadAppData(appData, inputDirectory)) {
+            response = makeResponse(runSchedule(body, appData));
+        } else {
+            response = makeResponse(
+                R"({"ok":false,"error":"Khong doc duoc du lieu"})",
+                "application/json",
+                "500 Internal Server Error"
+            );
+        }
     }
 
     // GIAO DIEN WEB

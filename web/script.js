@@ -13,6 +13,49 @@ const algorithmNames = {
     dp: "Dynamic Programming"
 };
 
+let errorDialog = null;
+let errorDialogMessage = null;
+
+function showProgramError(message) {
+    if (!errorDialog) {
+        errorDialog = document.createElement("dialog");
+        errorDialog.id = "program-error-dialog";
+        errorDialog.setAttribute("aria-labelledby", "program-error-title");
+        errorDialog.setAttribute("aria-describedby", "program-error-message");
+        errorDialog.style.cssText =
+            "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);" +
+            "width:min(26rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);" +
+            "overflow:auto;margin:0;border:0;border-radius:12px;" +
+            "padding:1.5rem;color:#1f2937;box-shadow:0 20px 60px rgba(0,0,0,.25);" +
+            "font:inherit;";
+
+        const title = document.createElement("h2");
+        title.id = "program-error-title";
+        title.textContent = "Chương trình báo lỗi";
+        title.style.cssText = "margin:0 0 .75rem;font-size:1.25rem;";
+
+        errorDialogMessage = document.createElement("p");
+        errorDialogMessage.id = "program-error-message";
+        errorDialogMessage.style.cssText = "margin:0 0 1.25rem;line-height:1.5;";
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.textContent = "Đóng";
+        closeButton.style.cssText =
+            "display:block;margin-left:auto;border:0;border-radius:8px;" +
+            "padding:.6rem 1rem;background:#555bdc;color:#fff;font:inherit;cursor:pointer;";
+        closeButton.addEventListener("click", () => errorDialog.close());
+
+        errorDialog.append(title, errorDialogMessage, closeButton);
+        document.body.append(errorDialog);
+    }
+
+    errorDialogMessage.textContent = String(message);
+    if (!errorDialog.open) {
+        errorDialog.showModal();
+    }
+}
+
 // ======================================================
 // GOI API
 // ======================================================
@@ -133,7 +176,7 @@ async function loadData() {
                 "Không đọc được dữ liệu: " + error.message;
         }
 
-        alert("Lỗi đọc dữ liệu: " + error.message);
+        showProgramError("Lỗi đọc dữ liệu: " + error.message);
     }
 }
 
@@ -143,12 +186,12 @@ async function loadData() {
 
 async function runAlgorithm(algorithm) {
     if (!dataLoaded) {
-        alert(" Đọc dữ liệu trước nha!");
+        showProgramError("Chương trình cần đọc dữ liệu!");
         return;
     }
 
     if (!algorithmNames[algorithm]) {
-        alert("Thuật toán không hợp lệ!");
+        showProgramError("Thuật toán không hợp lệ!");
         return;
     }
 
@@ -205,7 +248,7 @@ async function runAlgorithm(algorithm) {
                 "Không chạy được thuật toán: " + error.message;
         }
 
-        alert("Lỗi chạy thuật toán: " + error.message);
+        showProgramError("Lỗi chạy thuật toán: " + error.message);
     }
 }
 
@@ -568,12 +611,12 @@ function showStatistics(type) {
         document.getElementById("statistics-body");
 
     if (!detail || !title || !head || !body) {
-        alert("Không tìm thấy khu vực bảng thống kê.");
+        showProgramError("Không tìm thấy khu vực bảng thống kê.");
         return;
     }
 
     if (!dataLoaded || !examData) {
-        alert("Bà bấm Đọc dữ liệu trước nha!");
+        showProgramError("Chương trình cần đọc dữ liệu!");
         return;
     }
 
