@@ -786,70 +786,46 @@ function showStatistics(type) {
     }
 
     
-    // TU DONG  VIEN
-    else if (type === "students") {
-        title.textContent = "Danh sách sinh viên";
+    
+   
+    // DANH SACH SINH VIEN
+   else if (type === "students") {
+    title.textContent = "Danh sách sinh viên";
+    description.textContent =
+        "Danh sách sinh viên trong dữ liệu hệ thống.";
 
-        description.textContent =
-            "Danh sách sinh viên trong dữ liệu hệ thống.";
+    makeHeader([
+        "STT",
+        "Mã sinh viên",
+        "Họ và tên",
+        "Ngày sinh",
+        "Giới tính",
+        "Mã môn"
+    ]);
 
-        makeHeader([
-            "STT",
-            "Mã sinh viên",
-            "Họ và tên",
-            "Ngày sinh",
-            "Giới tính",
-            "Mã môn"
-        ]);
+    const students = getStudentsFromData(examData);
 
-        const students = getStudentsFromData(examData);
+    if (students.length === 0) {
+        showEmpty("Không có dữ liệu sinh viên.");
+    } else {
+        students.forEach((student, index) => {
+            const registeredCourses =
+                Array.isArray(student.registeredCourses)
+                    ? student.registeredCourses.join(", ")
+                    : (student.registeredCourses ?? "");
 
-        if (students.length === 0) {
-            const totalStudents =
-                typeof examData.students === "number"
-                    ? examData.students
-                    : examData.totalStudents ??
-                      examData.studentCount ??
-                      examData.total_students ??
-                      0;
-
-            showEmpty(
-                `Tổng số sinh viên: ${totalStudents}. API hiện chưa trả về danh sách chi tiết.`
-            );
-        } else {
-            students.forEach((student, index) => {
-                const registeredCourses =
-                    Array.isArray(student.registeredCourses)
-                        ? student.registeredCourses.join(", ")
-                        : (student.registeredCourses ?? "");
-
-                makeRow([
-                    index + 1,
-                    student.studentId ?? student.id ?? student.student_id ?? "",
-                    student.fullName ?? student.name ?? student.full_name ?? "",
-                    student.dateOfBirth ?? student.date_of_birth ?? "",
-                    student.gender ?? "",
-                    registeredCourses
-                ]);
-            });
-        }
+            makeRow([
+                index + 1,
+                student.studentId ?? "",
+                student.fullName ?? "",
+                student.dateOfBirth ?? "",
+                student.gender ?? "",
+                registeredCourses
+            ]);
+        });
     }
-
-    else {
-        title.textContent = "Thống kê";
-        description.textContent =
-            "Loại thống kê không hợp lệ.";
-
-        showEmpty("Không tìm thấy dữ liệu.");
-    }
-
-
-    detail.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-    });
 }
-
+}
 // ======================================================
 // DONG BANG THONG KE
 // ======================================================

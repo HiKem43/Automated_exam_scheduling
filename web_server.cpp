@@ -301,16 +301,30 @@ for (size_t i = 0; i < students.size(); ++i) {
 
     const auto& student = students[i];
 
-    json << "{"
-         << "\"studentId\":\""
-         << escapeJSON(student.getStudentId()) << "\","
-         << "\"fullName\":\""
-         << escapeJSON(student.getFullName()) << "\""
-         << "}";
+   json << "{"
+     << "\"studentId\":\""
+     << escapeJSON(student.getStudentId()) << "\","
+     << "\"fullName\":\""
+     << escapeJSON(student.getFullName()) << "\","
+     << "\"dateOfBirth\":\""
+     << escapeJSON(student.getDateOfBirth()) << "\","
+     << "\"gender\":\""
+     << escapeJSON(student.getGender()) << "\","
+     << "\"registeredCourses\":[";
+
+const auto& registeredCourses = student.getRegisteredCourses();
+
+for (size_t j = 0; j < registeredCourses.size(); ++j) {
+    if (j > 0) json << ",";
+
+    json << "\""
+         << escapeJSON(registeredCourses[j])
+         << "\"";
 }
 
+json << "]}";
+}
 json << "]";
-
 // DANH SACH MON HOC
 
 json << ",\"courseList\":[";
