@@ -2,7 +2,7 @@
 
 === Thuật toán tham lam (Greedy) ===
 Số môn đã xếp: 8
-Thời gian: 86936 micro giây
+Thời gian: 180303 micro giây
 SCH001 | C07 - Công nghệ phần mềm | 15-12-2026 08:00-10:00 | Phòng R01 | 294 sinh viên
 SCH002 | C01 - Cấu trúc dữ liệu | 15-12-2026 13:00-15:00 | Phòng R01 | 293 sinh viên
 SCH003 | C02 - Cơ sở dữ liệu | 16-12-2026 08:00-10:00 | Phòng R01 | 293 sinh viên
@@ -14,7 +14,7 @@ SCH008 | C08 - Toán rời rạc | 18-12-2026 13:00-15:00 | Phòng R01 | 293 sin
 
 === Quy hoạch động (DP) ===
 Số môn đã xếp: 8
-Thời gian: 102372 micro giây
+Thời gian: 68557 micro giây
 DP001 | C01 - Cấu trúc dữ liệu | 15-12-2026 08:00-10:00 | Phòng R01 | 293 sinh viên
 DP002 | C02 - Cơ sở dữ liệu | 15-12-2026 13:00-15:00 | Phòng R01 | 293 sinh viên
 DP003 | C03 - Phân tích giải thuật | 16-12-2026 08:00-10:00 | Phòng R01 | 293 sinh viên
@@ -26,7 +26,7 @@ DP008 | C08 - Toán rời rạc | 18-12-2026 13:00-15:00 | Phòng R01 | 293 sinh
 
 === Quay lui (Backtracking) ===
 Số môn đã xếp: 8
-Thời gian: 613985 micro giây
+Thời gian: 627315 micro giây
 SCH001 | C07 - Công nghệ phần mềm | 15-12-2026 08:00-10:00 | Phòng R01 | 294 sinh viên
 SCH002 | C01 - Cấu trúc dữ liệu | 15-12-2026 13:00-15:00 | Phòng R01 | 293 sinh viên
 SCH003 | C02 - Cơ sở dữ liệu | 16-12-2026 08:00-10:00 | Phòng R01 | 293 sinh viên

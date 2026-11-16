@@ -492,22 +492,7 @@ footer {
     margin: 20px 0;
 }
 
-.schedule-toolbar label {
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.room-filter-select {
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: white;
-    color: var(--text);
-    min-width: 160px;
-}
-
-.schedule-filter-summary {
+.schedule-summary {
     color: var(--muted);
     font-size: 12px;
 }

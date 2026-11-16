@@ -2,7 +2,6 @@ let dataLoaded = false;
 let schedules = [];
 let examData = null;
 let lastScheduleData = null;
-let selectedRoomFilter = "all";
 let visibleScheduleCount = 5;
 
 const SCHEDULE_PAGE_SIZE = 5;
@@ -444,7 +443,7 @@ function createScheduleCard(schedule, index) {
 }
 
 // ======================================================
-// LOC LICH THI THEO PHONG VA XEM THEM
+// HIEN THI LICH THI VA XEM THEM
 // ======================================================
 
 function renderScheduleContainer(container, failedCourses = []) {
@@ -452,89 +451,30 @@ function renderScheduleContainer(container, failedCourses = []) {
 
     container.replaceChildren();
 
-    const roomIds = [
-        ...new Set(
-            schedules
-                .map(schedule => schedule.roomId)
-                .filter(Boolean)
-        )
-    ].sort((a, b) =>
-        String(a).localeCompare(
-            String(b),
-            "vi",
-            { numeric: true }
-        )
-    );
-
     const toolbar = document.createElement("div");
     toolbar.className = "schedule-toolbar";
 
-    const label = document.createElement("label");
-    label.textContent = "Lọc theo phòng thi: ";
-
-    const select = document.createElement("select");
-    select.className = "room-filter-select";
-
-    const allOption = document.createElement("option");
-    allOption.value = "all";
-    allOption.textContent = "Tất cả phòng";
-
-    select.appendChild(allOption);
-
-    roomIds.forEach(roomId => {
-        const option = document.createElement("option");
-
-        option.value = String(roomId);
-        option.textContent = `Phòng ${roomId}`;
-
-        select.appendChild(option);
-    });
-
-    select.value = roomIds.some(roomId =>
-        String(roomId) === selectedRoomFilter
-    ) ? selectedRoomFilter : "all";
-
-    label.htmlFor = "room-filter-select";
-    select.id = "room-filter-select";
-
-    select.addEventListener("change", () => {
-        selectedRoomFilter = select.value;
-        visibleScheduleCount = SCHEDULE_PAGE_SIZE;
-
-        renderResults(failedCourses);
-    });
-
     const summary = document.createElement("span");
-    summary.className = "schedule-filter-summary";
+    summary.className = "schedule-summary";
 
-    toolbar.append(label, select, summary);
+    toolbar.appendChild(summary);
     container.appendChild(toolbar);
-
-    const filteredSchedules =
-        selectedRoomFilter === "all"
-            ? schedules
-            : schedules.filter(schedule =>
-                String(schedule.roomId) === selectedRoomFilter
-            );
 
     summary.textContent =
         `Hiển thị ${Math.min(
             visibleScheduleCount,
-            filteredSchedules.length
-        )} / ${filteredSchedules.length} lịch thi`;
+            schedules.length
+        )} / ${schedules.length} lịch thi`;
 
-    if (filteredSchedules.length === 0) {
+    if (schedules.length === 0) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
-
-        empty.textContent = schedules.length === 0
-            ? "Chưa có lịch thi được tạo."
-            : "Không có lịch thi trong phòng đã chọn.";
+        empty.textContent = "Chưa có lịch thi được tạo.";
 
         container.appendChild(empty);
 
     } else {
-        filteredSchedules
+        schedules
             .slice(0, visibleScheduleCount)
             .forEach((schedule, index) => {
                 container.appendChild(
@@ -542,7 +482,7 @@ function renderScheduleContainer(container, failedCourses = []) {
                 );
             });
 
-        if (filteredSchedules.length > visibleScheduleCount) {
+        if (schedules.length > visibleScheduleCount) {
             const moreButton = document.createElement("button");
 
             moreButton.type = "button";
